@@ -1,0 +1,8 @@
+Package: com.twks.tiktokbro
+Name: TikTok Bro
+Version: 0.1.1
+Architecture: iphoneos-arm
+Description: TikTok Lite watch statistics tweak
+Maintainer: TWKS
+Author: TWKS
+Section: Tweaks

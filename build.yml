@@ -1,0 +1,66 @@
+name: Build TikTok Bro
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.variant }} package
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: rootless
+            package_scheme: rootless
+          - variant: rootful
+            package_scheme: rootful
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Xcode
+        run: |
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Install packaging dependencies
+        run: |
+          brew install ldid fakeroot
+          # Theos currently documents a pinned dpkg revision for macOS packaging.
+          brew install --from-bottle https://raw.githubusercontent.com/Homebrew/homebrew-core/7a4dabfc1a2acd1f01a1670fde4f0094c4fb6ffa/Formula/dpkg.rb
+          brew pin dpkg
+          command -v ldid
+          command -v fakeroot
+          command -v dpkg-deb
+
+      - name: Install Theos
+        run: |
+          git clone --recursive --depth=1 https://github.com/theos/theos.git "$HOME/theos"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+          echo "$HOME/theos/bin" >> "$GITHUB_PATH"
+
+      - name: Build package
+        env:
+          PACKAGE_SCHEME: ${{ matrix.package_scheme }}
+        run: |
+          if [ "$PACKAGE_SCHEME" = "rootless" ]; then
+            make clean package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+          else
+            make clean package FINALPACKAGE=1
+          fi
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TikTok-Bro-${{ matrix.variant }}
+          path: packages/*.deb
+          if-no-files-found: error
+          retention-days: 14
